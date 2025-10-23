@@ -13,7 +13,7 @@ load_dotenv()
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from teams.routers import teams_router
+from apps.teams.routers import teams_router
 
 print("\n" + "=" * 80)
 print("RUTAS GENERADAS AUTOMÁTICAMENTE POR EL ROUTER DE TEAMS")

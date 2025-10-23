@@ -20,7 +20,8 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from .views import hola_mundo
-from teams.routers import teams_router
+from apps.teams.routers import teams_router
+from apps.heroes.routers import heroes_router
 
 # Configuración de Swagger
 schema_view = get_schema_view(
@@ -42,6 +43,9 @@ urlpatterns = [
 
     # Teams API
     path('api/', include(teams_router.urls)),
+
+    # Heroes API
+    path('api/', include(heroes_router.urls)),
 
     # Swagger URLs
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

@@ -274,38 +274,95 @@ pip freeze > requirements.txt
 
 ## Estructura del Proyecto
 
+### 📁 Organización con carpeta `apps/`
+
+Este proyecto utiliza la carpeta `apps/` para organizar todas las aplicaciones de negocio. Esta es una **mejor práctica en proyectos empresariales** de Django por las siguientes razones:
+
+1. **Escalabilidad**: Facilita la organización cuando tienes muchas apps (10+)
+2. **Separación clara**: `config/` para configuración, `apps/` para lógica de negocio
+3. **Estándar empresarial**: La mayoría de proyectos Django grandes usan esta estructura
+4. **Agrupación lógica**: Puedes sub-organizar apps por dominio (core, auth, integrations, etc.)
+
+**Imports con carpeta apps/**:
+```python
+# Imports de modelos
+from apps.teams.models import Team
+from apps.heroes.models import Hero
+
+# Imports de routers
+from apps.teams.routers import teams_router
+from apps.heroes.routers import heroes_router
+```
+
+**settings.py - INSTALLED_APPS**:
+```python
+INSTALLED_APPS = [
+    ...
+    'rest_framework',
+    'drf_yasg',
+    # Apps de negocio
+    'apps.teams',
+    'apps.heroes',
+]
+```
+
+---
+
+### 🗂️ Estructura Completa
+
 ```
 poc_django/
 │
 ├── config/                      # Proyecto Django principal
 │   ├── __init__.py
 │   ├── settings.py             # ✅ Configuración del proyecto
-│   ├── urls.py                 # ✅ URLs principales con Swagger + Teams
+│   ├── urls.py                 # ✅ URLs principales con Swagger + Apps
 │   ├── views.py                # ✅ Vista "Hola Mundo"
 │   ├── wsgi.py
 │   └── asgi.py
 │
-├── teams/                       # ✅ App Teams (Arquitectura 3 capas)
+├── apps/                        # ✅ Carpeta de aplicaciones (Organización empresarial)
 │   ├── __init__.py
-│   ├── admin.py
-│   ├── apps.py
-│   ├── models.py               # ✅ Modelo Team
-│   ├── schemas.py              # ✅ Schemas (Create, Read, Update)
-│   ├── repository.py           # ✅ Capa de acceso a datos
-│   ├── services.py             # ✅ Lógica de negocio y validaciones
-│   ├── docs.py                 # ✅ Documentación Swagger separada
-│   ├── views.py                # ✅ ViewSet (Controllers)
-│   ├── routers.py              # ✅ Configuración de rutas
-│   ├── tests.py
-│   └── migrations/
+│   │
+│   ├── teams/                   # ✅ App Teams (Arquitectura 3 capas)
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py           # ✅ Modelo Team
+│   │   ├── schemas.py          # ✅ Schemas (Create, Read, Update)
+│   │   ├── repository.py       # ✅ Capa de acceso a datos
+│   │   ├── services.py         # ✅ Lógica de negocio y validaciones
+│   │   ├── docs.py             # ✅ Documentación Swagger separada
+│   │   ├── views.py            # ✅ ViewSet (Controllers)
+│   │   ├── routers.py          # ✅ Configuración de rutas
+│   │   ├── tests.py
+│   │   └── migrations/
+│   │       ├── __init__.py
+│   │       └── 0001_initial.py # ✅ Migración inicial
+│   │
+│   └── heroes/                  # ✅ App Heroes (Arquitectura 3 capas + Relación FK)
 │       ├── __init__.py
-│       └── 0001_initial.py     # ✅ Migración inicial
+│       ├── admin.py
+│       ├── apps.py
+│       ├── models.py           # ✅ Modelo Hero (con FK a Team)
+│       ├── schemas.py          # ✅ Schemas (Create, Read, Update)
+│       ├── repository.py       # ✅ Capa de acceso a datos (con select_related)
+│       ├── services.py         # ✅ Lógica de negocio y validaciones
+│       ├── docs.py             # ✅ Documentación Swagger separada
+│       ├── views.py            # ✅ ViewSet (Controllers)
+│       ├── routers.py          # ✅ Configuración de rutas
+│       ├── tests.py
+│       └── migrations/
+│           ├── __init__.py
+│           └── 0001_initial.py # ✅ Migración inicial
 │
 ├── venv/                        # Ambiente virtual (no incluir en git)
 ├── .env                         # Variables de entorno (no incluir en git)
 ├── .gitignore
 ├── manage.py                    # Script de gestión Django
 ├── check_db_connection.py       # ✅ Script de verificación de DB
+├── show_routes.py               # ✅ Script para ver rutas de Teams
+├── show_heroes_routes.py        # ✅ Script para ver rutas de Heroes
 ├── requirements.txt             # ✅ Dependencias del proyecto
 ├── db.sqlite3                   # ✅ Base de datos SQLite
 ├── README.md                    # Este archivo
@@ -2464,6 +2521,489 @@ pip install -r requirements.txt
 5. **Repository** → Accede a la base de datos
 6. **Model** → Interactúa con la tabla
 7. **Response** → Retorna datos al cliente
+
+---
+
+## 🦸 App Heroes - Relaciones con ForeignKey
+
+La app `heroes` demuestra cómo trabajar con **relaciones entre modelos** en Django ORM,
+específicamente con **ForeignKey** (relación Many-to-One).
+
+### 📊 Relación entre Team y Hero
+
+**Concepto**:
+- Un **Team** puede tener **MUCHOS** Heroes
+- Un **Hero** solo puede pertenecer a **UN** Team
+- Relación: **Many-to-One** (muchos heroes, un team)
+
+**En Django ORM** vs **SQLModel/SQLAlchemy**:
+
+```python
+# ======== SQLModel/SQLAlchemy (tienes que definir AMBOS lados) ========
+class Team(SQLModel, table=True):
+    id: int
+    nombre: str
+    heroes: list["Hero"] = Relationship(back_populates="team")  # ← Relación explícita
+
+class Hero(SQLModel, table=True):
+    id: int
+    nombre: str
+    team_id: int = Field(foreign_key="team.id")
+    team: Team = Relationship(back_populates="heroes")  # ← Relación explícita
+
+
+# ======== Django ORM (solo defines UN lado, Django crea el otro automáticamente) ========
+class Team(models.Model):
+    id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=255)
+    # ¡NO necesitas definir 'heroes' aquí!
+    # Django lo crea AUTOMÁTICAMENTE como team.heroes.all()
+
+class Hero(models.Model):
+    id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=255)
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,  # Si se elimina el team, se eliminan sus heroes
+        related_name='heroes'      # Nombre del acceso inverso: team.heroes.all()
+    )
+```
+
+**Ventaja de Django**: Solo defines la relación UNA VEZ (en el hijo), Django crea automáticamente el acceso inverso.
+
+---
+
+### 🔍 Cómo usar las relaciones
+
+#### Desde Hero → Team (acceso directo):
+```python
+# Obtener el team de un hero
+hero = Hero.objects.get(id=1)
+team = hero.team  # ← Acceso directo al team
+print(f"{hero.nombre} pertenece a {team.nombre}")
+```
+
+#### Desde Team → Heroes (acceso inverso):
+```python
+# Obtener todos los heroes de un team
+team = Team.objects.get(id=1)
+heroes = team.heroes.all()  # ← Django creó esto automáticamente
+# 'heroes' viene de related_name='heroes' en la ForeignKey
+
+for hero in heroes:
+    print(f"  - {hero.nombre}")
+```
+
+---
+
+### 🗂️ Estructura de la App Heroes
+
+```
+heroes/
+├── models.py          # Modelo Hero con ForeignKey a Team
+├── schemas.py         # Schemas con TeamNestedSerializer
+├── repository.py      # CRUD con select_related('team')
+├── services.py        # Validaciones de negocio
+├── docs.py           # Documentación Swagger
+├── views.py          # ViewSet con custom actions
+└── routers.py        # Configuración de rutas
+```
+
+---
+
+### 📝 PASO A PASO: Crear App Heroes
+
+#### PASO 1: Crear la app
+```bash
+python manage.py startapp heroes
+```
+
+#### PASO 2: Crear el modelo con ForeignKey
+
+**Archivo**: `heroes/models.py`
+
+```python
+from django.db import models
+from teams.models import Team
+
+class Hero(models.Model):
+    id = models.AutoField(primary_key=True, editable=False)
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True, null=True)
+    poder_principal = models.CharField(max_length=255, blank=True, null=True)
+    nivel = models.IntegerField(default=1)
+
+    # ========== RELACIÓN CON TEAM ==========
+    team = models.ForeignKey(
+        Team,                       # Modelo relacionado
+        on_delete=models.CASCADE,   # Si se elimina el team, eliminar heroes
+        related_name='heroes',      # Acceso inverso: team.heroes.all()
+        verbose_name="Equipo"
+    )
+    # =======================================
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'heroes'
+        ordering = ['-fecha_creacion']
+        indexes = [
+            models.Index(fields=['team'], name='idx_hero_team'),
+        ]
+```
+
+**Explicación de ForeignKey**:
+- `Team`: El modelo al que apunta la relación
+- `on_delete=models.CASCADE`: Si eliminas un team, se eliminan todos sus heroes
+  - Otras opciones: `PROTECT` (no permite eliminar), `SET_NULL` (pone NULL), etc.
+- `related_name='heroes'`: Nombre del acceso inverso desde Team
+  - Sin esto, Django crea `team.hero_set.all()` (automático pero feo)
+  - Con esto, usas `team.heroes.all()` (más legible)
+
+#### PASO 3: Crear Schemas con serializer anidado
+
+**Archivo**: `heroes/schemas.py`
+
+**Característica clave**: Cuando lees un Hero, también quieres ver información de su Team:
+
+```python
+from rest_framework import serializers
+from .models import Hero
+from teams.models import Team
+
+# ========== SERIALIZER ANIDADO ==========
+class TeamNestedSerializer(serializers.ModelSerializer):
+    """
+    Permite mostrar información del Team dentro del Hero
+    """
+    class Meta:
+        model = Team
+        fields = ['id', 'nombre', 'descripcion']
+        read_only_fields = ['id', 'nombre', 'descripcion']
+
+# ========== READ SCHEMA ==========
+class HeroReadSchema(serializers.ModelSerializer):
+    team_id = serializers.IntegerField(source='team.id', read_only=True)
+    team = TeamNestedSerializer(read_only=True)  # ← Info completa del team
+
+    class Meta:
+        model = Hero
+        fields = ['id', 'nombre', 'descripcion', 'poder_principal',
+                  'nivel', 'team_id', 'team', 'fecha_creacion']
+```
+
+**Respuesta JSON resultante**:
+```json
+{
+  "id": 1,
+  "nombre": "Superman",
+  "descripcion": "El hombre de acero",
+  "poder_principal": "Super fuerza",
+  "nivel": 95,
+  "team_id": 1,
+  "team": {
+    "id": 1,
+    "nombre": "Justice League",
+    "descripcion": "Los héroes más poderosos"
+  },
+  "fecha_creacion": "2025-10-23T10:30:00Z"
+}
+```
+
+#### PASO 4: Repository con select_related
+
+**Archivo**: `heroes/repository.py`
+
+**IMPORTANTE**: Para evitar el problema **N+1 queries**, usa `select_related('team')`:
+
+```python
+@staticmethod
+def get_hero_by_id(hero_id: int) -> Optional[Hero]:
+    try:
+        # select_related('team') hace un JOIN SQL y trae el team en la misma query
+        return Hero.objects.select_related('team').get(id=hero_id)
+    except Hero.DoesNotExist:
+        return None
+
+@staticmethod
+def get_all_heroes(offset: int = 0, limit: int = 10):
+    # Sin select_related: 1 query para heroes + N queries para teams (MALO)
+    # Con select_related: 1 query con JOIN (BUENO)
+    queryset = Hero.objects.select_related('team').all()
+    total = queryset.count()
+    heroes = list(queryset[offset:offset + limit])
+    return heroes, total
+
+@staticmethod
+def get_heroes_by_team(team_id: int, offset: int = 0, limit: int = 10):
+    """
+    Obtiene todos los heroes de un team específico.
+    Esto es equivalente a: team.heroes.all()
+    """
+    queryset = Hero.objects.select_related('team').filter(team_id=team_id)
+    total = queryset.count()
+    heroes = list(queryset[offset:offset + limit])
+    return heroes, total
+```
+
+**¿Qué es N+1 queries?**
+
+SIN `select_related`:
+```sql
+-- Query 1: Obtener 10 heroes
+SELECT * FROM heroes LIMIT 10;
+
+-- Queries 2-11: Una query POR CADA hero para obtener su team
+SELECT * FROM teams WHERE id = 1;
+SELECT * FROM teams WHERE id = 2;
+SELECT * FROM teams WHERE id = 1;  -- ¡Repetido!
+...
+-- Total: 11 queries
+```
+
+CON `select_related('team')`:
+```sql
+-- Query única con JOIN
+SELECT heroes.*, teams.*
+FROM heroes
+LEFT JOIN teams ON heroes.team_id = teams.id
+LIMIT 10;
+-- Total: 1 query
+```
+
+#### PASO 5: Services con validaciones
+
+**Archivo**: `heroes/services.py`
+
+**Validación importante**: El team debe existir antes de crear un hero:
+
+```python
+def create_hero(self, nombre: str, team_id: int, ...) -> Hero:
+    # Validar que el team existe
+    team = self.team_repository.get_team_by_id(team_id)
+    if not team:
+        raise ValidationError({
+            "team_id": f"No existe un equipo con ID {team_id}"
+        })
+
+    # Crear hero
+    hero = self.hero_repository.create_hero(
+        nombre=nombre,
+        team=team,  # Pasamos el objeto Team completo
+        ...
+    )
+    return hero
+```
+
+#### PASO 6: Documentación Swagger separada
+
+**Archivo**: `heroes/docs.py`
+
+Similar a Teams, toda la documentación Swagger va en un archivo separado.
+
+#### PASO 7: Views con custom actions
+
+**Archivo**: `heroes/views.py`
+
+**Custom action importante**: `get_by_team` para obtener heroes de un equipo:
+
+```python
+@get_by_team_docs
+@action(detail=True, methods=['get'], url_path='by-team')
+def get_by_team(self, request, pk=None):
+    """
+    GET /api/heroes/{team_id}/by-team/
+
+    Esta custom action simula la relación inversa:
+    team.heroes.all()
+
+    Nota: El {pk} aquí representa el team_id, no el hero_id
+    """
+    offset = int(request.query_params.get('offset', 0))
+    limit = int(request.query_params.get('limit', 10))
+
+    result = self.service.get_heroes_by_team(
+        team_id=int(pk),
+        offset=offset,
+        limit=limit
+    )
+
+    heroes_serializer = HeroReadSchema(result['heroes'], many=True)
+
+    return Response({
+        "heroes": heroes_serializer.data,
+        "total": result['total'],
+        "team_info": result['team_info'],
+        ...
+    })
+```
+
+#### PASO 8: Router y URLs
+
+**Archivo**: `heroes/routers.py`
+
+```python
+from rest_framework.routers import DefaultRouter
+from .views import HeroViewSet
+
+def get_heroes_router():
+    router = DefaultRouter()
+    router.register(r'heroes', HeroViewSet, basename='hero')
+    return router
+
+heroes_router = get_heroes_router()
+```
+
+**Archivo**: `config/urls.py`
+
+```python
+from heroes.routers import heroes_router
+
+urlpatterns = [
+    path('api/', include(teams_router.urls)),
+    path('api/', include(heroes_router.urls)),  # ← Agregar
+    ...
+]
+```
+
+#### PASO 9: Registrar app en settings.py
+
+**Archivo**: `config/settings.py`
+
+```python
+INSTALLED_APPS = [
+    ...
+    'rest_framework',
+    'drf_yasg',
+    # Apps
+    'teams',
+    'heroes',  # ← Agregar
+]
+```
+
+#### PASO 10: Crear y ejecutar migraciones
+
+```bash
+# Crear migración
+python manage.py makemigrations heroes
+
+# Ejecutar migración
+python manage.py migrate heroes
+
+# Verificar que todo está bien
+python manage.py check
+```
+
+---
+
+### 🌐 Endpoints de Heroes
+
+| Método | URL | Descripción |
+|--------|-----|-------------|
+| POST | `/api/heroes/` | Crear un nuevo héroe |
+| GET | `/api/heroes/` | Listar todos los héroes (paginado) |
+| GET | `/api/heroes/{id}/` | Obtener un héroe por ID |
+| GET | `/api/heroes/by-name/?nombre={nombre}` | Buscar héroe por nombre |
+| GET | `/api/heroes/{team_id}/by-team/` | Obtener héroes de un equipo |
+| PATCH | `/api/heroes/{id}/` | Actualizar un héroe |
+| DELETE | `/api/heroes/{id}/` | Eliminar un héroe |
+
+---
+
+### 🔗 Comparación: Django ORM vs SQLModel
+
+| Aspecto | Django ORM | SQLModel/SQLAlchemy |
+|---------|-----------|---------------------|
+| **Definir relación** | Solo en el hijo (Hero) | En ambos lados (Team y Hero) |
+| **Acceso inverso** | Automático: `team.heroes.all()` | Manual: `Relationship(back_populates)` |
+| **Evitar N+1** | `select_related('team')` | `joinedload(Hero.team)` |
+| **Sintaxis** | Más implícita (convención) | Más explícita (configuración) |
+| **Facilidad** | ⭐⭐⭐⭐⭐ Más fácil | ⭐⭐⭐ Más verboso |
+
+**Ventaja de Django**: Menos código, más automático.
+
+**Ventaja de SQLModel**: Más explícito, mejores type hints.
+
+---
+
+### 💡 Consejos para trabajar con ForeignKey
+
+1. **Siempre usa `select_related`** cuando consultes objetos con ForeignKey
+   ```python
+   # ❌ MALO (N+1 queries)
+   heroes = Hero.objects.all()
+
+   # ✅ BUENO (1 query con JOIN)
+   heroes = Hero.objects.select_related('team').all()
+   ```
+
+2. **Define `related_name` siempre** para accesos inversos más claros
+   ```python
+   # ❌ Sin related_name
+   team.hero_set.all()  # Feo
+
+   # ✅ Con related_name='heroes'
+   team.heroes.all()  # Legible
+   ```
+
+3. **Valida que la FK existe** antes de crear/actualizar
+   ```python
+   # En services.py
+   team = self.team_repository.get_team_by_id(team_id)
+   if not team:
+       raise ValidationError({"team_id": "Team no existe"})
+   ```
+
+4. **Usa `on_delete` apropiado**:
+   - `CASCADE`: Eliminar hijo cuando se elimina padre (lo más común)
+   - `PROTECT`: Evitar eliminar padre si tiene hijos
+   - `SET_NULL`: Poner NULL en hijo cuando se elimina padre (requiere `null=True`)
+
+---
+
+### 🧪 Ejemplo de uso completo
+
+```python
+# 1. Crear un team
+team = Team.objects.create(nombre="Justice League")
+
+# 2. Crear heroes para ese team
+superman = Hero.objects.create(
+    nombre="Superman",
+    poder_principal="Super fuerza",
+    nivel=95,
+    team=team  # ← Relación directa
+)
+
+batman = Hero.objects.create(
+    nombre="Batman",
+    poder_principal="Inteligencia",
+    nivel=90,
+    team=team
+)
+
+# 3. Acceso directo (Hero → Team)
+print(f"{superman.nombre} pertenece a {superman.team.nombre}")
+# Output: Superman pertenece a Justice League
+
+# 4. Acceso inverso (Team → Heroes)
+for hero in team.heroes.all():
+    print(f"  - {hero.nombre} (Nivel: {hero.nivel})")
+# Output:
+#   - Superman (Nivel: 95)
+#   - Batman (Nivel: 90)
+
+# 5. Filtrar heroes por team
+justice_league_heroes = Hero.objects.filter(team=team)
+print(f"Total heroes: {justice_league_heroes.count()}")
+# Output: Total heroes: 2
+
+# 6. Optimizar con select_related
+heroes = Hero.objects.select_related('team').all()
+for hero in heroes:
+    # No hace query adicional aquí porque ya trajo el team
+    print(f"{hero.nombre} - {hero.team.nombre}")
+```
 
 ---
 
