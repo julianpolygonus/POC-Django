@@ -15,11 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, re_path
+from django.urls import path, re_path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from .views import hola_mundo
+from teams.routers import teams_router
 
 # Configuración de Swagger
 schema_view = get_schema_view(
@@ -38,6 +39,9 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/hola-mundo/', hola_mundo, name='hola-mundo'),
+
+    # Teams API
+    path('api/', include(teams_router.urls)),
 
     # Swagger URLs
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
